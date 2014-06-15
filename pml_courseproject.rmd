@@ -1,0 +1,69 @@
+====================================
+## Introduction
+The goal of your project is to predict the manner in which they did the exercise. This is the "classe" variable in the training set. The following report describes how 
+we built our model and how we used cross validation dataset. We will also use our prediction model to predict 20 different test cases at last.
+
+## Data preparation
+1.Load the datasets and libraries.
+```{r warning=FALSE}
+library(caret)
+# Load datasets
+trainRawData <- read.csv("pml-training.csv", header=TRUE, stringsAsFactors=FALSE)
+testRawData <- read.csv("pml-testing.csv", header=TRUE, stringsAsFactors=FALSE)
+```
+
+2.Divide the data into two sets: training (70%) and cross validation (30%). The test set is given so there is no need to generate from the code.
+```{r warning=FALSE}
+set.seed(1234)
+trainIndex <- createDataPartition(trainRawData$classe, p=0.7，list=FALSE)
+# training dataset
+training = trainRawData[trainIndex,]
+# cross validation dataset
+testing = trainRawData[-trainIndex,]
+```
+
+3.Filter the numeric variables and remove all the missing values in these variables
+```{r warning=FALSE}
+valid_idx = which(lapply(training,class) %in% "numeric")
+validTrain<- preProcess(training[,valid_idx], method="knnImpute")
+combTrain <- cbind(training$classe, predict(validTrain, training[,valid_idx]))
+combTest <- cbind(testing$classe, predict(validTrain, testing[,valid_idx]))
+
+# testing dataset
+validSubmission <- predict(validTrain, testRawData[,valid_idx])
+```
+
+4.Rename first Label as classe
+```{r warning=FALSE}
+names(combTrain)[1] <- 'classe'
+names(combTest)[1] <- 'classe'
+```
+
+## Prediction with Random Forest Model
+Apply a random forest model to the numerical variables. 
+```{r warning=FALSE}
+library(randomForest)
+modFit <- randomForest(classe ~ ., combTrain)
+modFit
+```
+
+### In-sample accuracy
+In-sample accuracy is 100%, which shows that the model does not suffer from bias. 
+```{r warning=FALSE}
+predictTrain <- predict(modFit, combTrain)
+print(confusionMatrix(predictTrain, combTrain$classe))
+```
+
+### Out-of-sample accuracy
+The out-of-sample accuracy is 98.6%, which is enough to predict the 20 test observations.
+```{r warning=FALSE}
+predictTest <- predict(modFit, combTest)
+print(confusionMatrix(predictTest, combTest$classe))
+```
+ 
+## Test Set Prediction Results
+Apply the model to the twenty test observations.
+```{r warning=FALSE}
+answers <- predict(modFit, validSubmission)
+answers
+```
